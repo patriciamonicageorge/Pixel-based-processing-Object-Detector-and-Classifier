@@ -1,0 +1,387 @@
+//PATRICIA MONICA GEORGE
+//Pixel-Based Processing
+
+#include <afxwin.h>  // necessary for MFC to work properly
+#include "Homework.h"
+#include "../../src/blepo.h"
+#include <math.h>
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
+
+using namespace blepo;
+using namespace std;
+
+int mgv(ImgGray& img)
+{
+
+	int meangrayvalue;
+	int grayvaluesum=0;
+	for(int y=0;y<img.Height();y++)
+	{
+		for(int x=0;x<img.Width();x++)
+		{
+			grayvaluesum=grayvaluesum+img(x,y);
+			meangrayvalue=grayvaluesum/(img.Width()*img.Height());
+
+		}
+	}
+	printf("\n Mean Gray Level=%d\n",meangrayvalue);
+	return(meangrayvalue);
+}
+
+ImgGray Thresholding( ImgGray img,int t)
+{
+	ImgGray I(img.Width(),img.Height());
+	for(int y=0;y<img.Height();y++)
+	{
+		for(int x=0;x<img.Width();x++)
+		{
+			if(img(x,y)<t)
+			{
+				I(x,y)=0;
+			}
+			else if(img(x,y)>=t)
+			{
+				I(x,y)=255;
+			}
+		}
+	}
+	return(I);
+}
+
+void fill(ImgGray &img)
+{
+	for(int y=0;y<img.Height();y++)
+	{
+		for(int x=0;x<img.Width();x++)
+		{
+			if(img(x,y)==150)
+			{
+				if(img(x-1,y)==0||img(x+1,y)==0||img(x,y-1)==0||img(x,y+1)==0||img(x-1,y-1)==0||img(x-1,y+1)==0||img(x+1,y+1)==0||img(x+1,y-1)==0)
+				{
+					img(x,y)=0;
+				}
+			}
+		}
+	}
+}
+
+ImgGray Double_Thresholding( ImgGray img,int tl,int th)
+{
+	ImgGray I(img.Width(),img.Height());
+	for(int y=0;y<img.Height();y++)
+	{
+		for(int x=0;x<img.Width();x++)
+		{
+			if(img(x,y)<=tl)
+			{
+				I(x,y)=0;
+			}
+			else if(img(x,y)>=th)
+			{
+				I(x,y)=255;
+			}
+			else if(tl<img(x,y)&&img(x,y)<th)
+			{
+				I(x,y)=150;
+			}
+
+
+		}
+	}
+	fill(I);
+	for(int y=0;y<img.Height();y++)
+	{
+		for(int x=0;x<img.Width();x++)
+		{
+			if(I(x,y)==150)
+			{
+				I(x,y)=255;
+			}
+		}
+	}
+
+	return(I);
+}
+ImgGray ff(ImgGray &I)
+{
+
+	ImgGray K(I.Width(),I.Height());
+	int x1,y1;
+	for(int y=0;y<I.Height();y++)
+	{
+		for(int x=0;x<I.Width();x++)
+		{
+			if(I(x,y)==255)
+			{
+				x1=x;
+				y1=y;
+				goto line1;
+			}
+		}
+	}
+
+line1: 
+
+	unsigned char new_color = 255;
+	FloodFill8(I,x1,y1,new_color, &K);
+
+	for(int y=0;y<I.Height();y++)
+	{
+		for(int x=0;x<I.Width();x++)
+		{
+			if(K(x,y)==255)
+			{ 
+				I(x,y)=0;
+			}
+		}
+	}
+	return I;
+}
+
+
+int main(int argc, const char* argv[], const char* envp[])
+{
+	static int count=0;
+	// Initialize MFC and return if failure
+	HMODULE hModule = ::GetModuleHandle(NULL);
+	if (hModule == NULL || !AfxWinInit(hModule, NULL, ::GetCommandLine(), 0))
+	{
+		printf("Fatal Error: MFC initialization failed (hModule = %x)\n", hModule);
+		return 1;
+	}
+	try
+	{
+		int t1,t2,L=256;
+
+		//LOAD THE USER REQUESTED IMAGE AND DISPLAY IT IN A SEPERATE FIGURE WINDOW
+		ImgGray img1;
+		CString filepath = "../../images/";
+		argv[1] = filepath + argv[1];
+		CString image1 = argv[1];
+		Load(image1, &img1);
+		Figure fig1("ORIGINAL IMAGE");
+		fig1.Draw(img1);
+
+		//CALCULATE MEAN GRAY VALUE, LOW THRESHOLD LIMIT AND HIGH THRESHOLD LIMIT
+		int t=mgv(img1);
+		if(t<L/2)
+		{
+			t1=t-(t/8);
+			t2=(t1+2*t1/3);
+		}
+		else
+		{
+			t1=t-(t/8);
+			t2=t+t1/2;
+		}
+		printf("\n Low Threshold value=%d \t High Threshold value=%d \n",t1,t2);
+
+		//THRESHOLD THE ORIGINAL IMAGE WITH LOW THRESHOLD LIMIT AND HIGH THRESHOLD LIMIT AND DISPLAY THE THRESHOLDED IMAGES IN TWO SEPERATE WINDOWS
+		ImgGray TL(img1.Width(),img1.Height()), TH(img1.Width(),img1.Height());
+		TL=Thresholding(img1,t1);
+		TH=Thresholding(img1,t2);
+		Figure fig2("IMAGE THRESHOLDED WITH LOW THRESHOLD LIMIT");
+		fig2.Draw(TL);
+		Figure fig3("IMAGE THRESHOLDED WITH HIGH THRESHOLD LIMIT");
+		fig3.Draw(TH);
+
+		//DOUBLE THRESHOLD THE ORIGINAL IMAGE
+		ImgGray I1(img1.Width(),img1.Height()),I2(img1.Width(),img1.Height()),I3(img1.Width(),img1.Height());
+		I1=Double_Thresholding(img1,t1,t2);
+		//Figure fig4("DOUBLE THRESHOLDED IMAGE WITH LOW AND HIGH THRESHOLD LIMITS");
+		//fig4.Draw(I1);
+
+		//REMOVE NOISE AND DISPLAY THE IMAGE
+		for(int i=0;i<3;i++)
+		{
+			ImgGray I2(img1.Width(),img1.Height());
+			Erode3x3(I1,&I2);
+			Dilate3x3(I2,&I3);
+			I1=I3;
+		}
+		Figure fig4("DOUBLE THRESHOLDED IMAGE AFTER NOISE REMOVAL");
+		fig4.Draw(I3);
+
+		//USING REPEATED FLOODFILL COUNT THE NUMBER OF FOREGROUND OBJECTS IN THE IMAGE
+		ImgGray I4(img1.Width(),img1.Height());
+		for(int y=0;y<img1.Height();y++)
+		{
+			for(int x=0;x<img1.Width();x++)
+			{
+				I4(x,y)=I3(x,y);
+			}
+		}
+		for(int y=0;y<img1.Height();y++)
+		{
+			for(int x=0;x<img1.Width();x++)
+			{
+				if(I4(x,y)==255)
+				{
+					I4=ff(I4);
+					count++;
+				}
+
+			}
+		}
+		printf("\n \n Number of foreground objects = %d\n",count);
+		printf("\n\n\n");
+
+		//CALCULATE THE MOMENTS
+		for(int y=0;y<img1.Height();y++)
+		{
+			for(int x=0;x<img1.Width();x++)
+			{
+				I4(x,y)=I3(x,y);
+			}
+		}
+		ImgGray I5(img1.Width(),img1.Height()),I6(img1.Width(),img1.Height()),I7(img1.Width(),img1.Height());
+		for(int i=1;i<=count;i++)
+		{
+
+			int x1,y1;
+			for(int y=0;y<img1.Height();y++)
+			{
+				for(int x=0;x<img1.Width();x++)
+				{
+					I5(x,y)=0;
+
+				}
+			}
+			for(int y=0;y<220;y++)
+			{
+				for(int x=0;x<img1.Width();x++)
+				{
+					if(I4(x,y)==255)
+					{
+						x1=x;
+						y1=y;
+						goto line2;
+					}
+				}
+			}
+line2: 
+			printf("\n Seed points of foreground object %d are x=%d\ty=%d\n",i,x1,y1);
+
+			unsigned char new_color = 255;
+			FloodFill8(I4,x1,y1,new_color, &I5);
+
+			int m00=0,m02=0,m20=0,m11=0,m01=0,m10=0;
+			int mu00,mu11,mu20,mu02,xbar,ybar;
+
+			//REGULAR MOMENTS
+
+			int W=img1.Width(),H=img1.Height();
+			for(int y=0;y<H;y++)
+			{
+				for(int x=0;x<W;x++)
+				{
+
+					m00=m00+I5(x,y);
+
+					m10=m10+I5(x,y)*x;
+					m01=m01+I5(x,y)*y;
+					m20=m20+I5(x,y)*x*x;
+					m02=m02+I5(x,y)*y*y;
+					m11=m11+I5(x,y)*x*y;
+
+
+				}}
+
+			//CENTRALIZED MOMENTS
+			mu00=m00;
+			xbar=m10/m00;
+			ybar=m01/m00;
+			mu11=m11-ybar*m10;
+			mu20=m20-xbar*m10;
+			mu02=m02-ybar*m01;
+
+
+
+			printf("\n The regular moments of foreground object %d:\n\nm00=%d\tm01=%d\tm10=%d\tm02=%d\tm20=%d\tm11=%d\t\n",i,m00,m01,m10,m02,m20,m11);
+			printf("\nThe centralized moments of foreground object %d:\n\n mu00=%d\tmu02=%d\tmu20=%d\tmu11=%d\t\n",i,mu00,mu02,mu20,mu11);
+
+			//COMPACTNESS
+			int A=0;
+			for(int y=0;y<img1.Height();y++)
+			{
+				for(int x=0;x<img1.Width();x++)
+				{
+					if(I5(x,y)==255)
+					{ 
+						A++;
+					}
+				}
+			}
+			printf("\n The area of the foreground object %d is %d\n",i,A);
+
+
+			for(int y=0;y<img1.Height();y++)
+			{
+				for(int x=0;x<img1.Width();x++)
+				{
+					if(I5(x,y)==255)
+					{ 
+						I4(x,y)=0;
+					}
+				}
+			}
+			Erode3x3(I5,&I6);
+			Xor(I5,I6,&I7);
+			int P=0;
+			for(int y=0;y<img1.Height();y++)
+			{
+				for(int x=0;x<img1.Width();x++)
+				{
+					if(I7(x,y)==255)
+					{
+						P++;
+					}
+				}
+			}
+			printf("\n The perimeter of the foreground object %d is %d\n",i,P);
+
+			float compactness;
+			compactness=float((4*3.14159*A)/(P*P));
+
+			printf("\n The compactness of the foreground object %d is %f\n",i,compactness);
+
+			//ECCENTRICITY
+			double e;
+			e=double(sqrt((2*sqrt((mu20-mu02)*(mu20-mu02)+(4*mu11*mu11)))/(mu20+mu02+sqrt((mu20-mu02)*(mu20-mu02)+(4*mu11*mu11))) ));
+			printf("\n The eccentricity of the foreground object %d is %f \n",i,e);
+
+			//DIRECTION
+			double d;
+			d=atan2((2*mu11),(mu20-mu02));
+			printf("\n The direction of the foreground object %d clockwise from positive x-axis is %f radians \n",i,d);
+			
+			//CLASSIFY THE FOREGROUND OBJECTS IN THE IMAGE
+			if(0<=compactness&&compactness<=0.25)
+			{
+				printf("\n THE FOREGROUND OBJECT %d IS A BANANA\n",i);
+			}
+			else if(0.25<compactness&&compactness<0.6)
+			{
+				printf("\n THE FOREGROUND OBJECT %d IS AN APPLE\n",i);
+			}
+			else if(0.6<=compactness&&compactness<=1)
+			{
+				printf("\n THE FOREGROUND OBJECT %d IS A GRAPEFRUIT\n",i);
+			}
+
+			printf("\n\n\n");
+		}
+		
+
+		// Loop forever until user presses Ctrl-C in terminal window.
+		EventLoop();
+	}
+	catch(const Exception& e)
+	{
+		e.Display();     //display exception to user in a popup window
+	}
+	return 0;
+}
